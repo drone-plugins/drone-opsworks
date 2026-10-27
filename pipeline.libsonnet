@@ -5,7 +5,11 @@ local test_pipeline_name = 'testing';
 local windows(os) = os == 'windows';
 
 local golang_image(os, version) =
-  'golang:' + '1.11' + if windows(os) then '-windowsservercore-' + version else '';
+  if !windows(os) then 'golang:1.26.10@sha256:24a707af49702fa44f02785475d02fb752f6982d3e9c0afb7696e1f0204e7ce9'
+  else if version == '1803' then 'golang:1.11-windowsservercore-1803'
+  else 'golang:1.11-windowsservercore-1809';
+
+local go_setup(os) = if windows(os) then ['. ./scripts/setup-go-windows.ps1'] else [];
 
 {
   test(os='linux', arch='amd64', version='')::
@@ -28,7 +32,7 @@ local golang_image(os, version) =
           environment: {
             GO111MODULE: 'on',
           },
-          commands: [
+          commands: go_setup(os) + [
             'go vet ./...',
           ],
           volumes: volumes,
@@ -40,7 +44,7 @@ local golang_image(os, version) =
           environment: {
             GO111MODULE: 'on',
           },
-          commands: [
+          commands: go_setup(os) + [
             'go test -cover ./...',
           ],
           volumes: volumes,
@@ -81,7 +85,7 @@ local golang_image(os, version) =
             CGO_ENABLED: '0',
             GO111MODULE: 'on',
           },
-          commands: [
+          commands: go_setup(os) + [
             'go build -v -ldflags "-X main.version=${DRONE_COMMIT_SHA:0:8}" -a -tags netgo -o release/' + os + '/' + arch + '/' + name + extension,
           ],
           when: {
@@ -98,7 +102,7 @@ local golang_image(os, version) =
             CGO_ENABLED: '0',
             GO111MODULE: 'on',
           },
-          commands: [
+          commands: go_setup(os) + [
             'go build -v -ldflags "-X main.version=${DRONE_TAG##v}" -a -tags netgo -o release/' + os + '/' + arch + '/' + name + extension,
           ],
           when: {
